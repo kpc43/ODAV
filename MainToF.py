@@ -56,7 +56,14 @@ if __name__ == "__main__":
         DO, OCT, OCB = getObjInfoNoCam()
 
         if not DO:
-            print("No object detected.")
+            sd = {sid: getSensorDistanceTof(sid) for sid in SENSOR_IDS}
+            drain_queue(tof_queue, sd)
+
+            wall_detected = any(sd[sid] <= MSR for sid in SENSOR_IDS)
+            if wall_detected:
+                print("No object detected — wall detected by sensor.")
+            else:
+                print("No object detected.")
             continue
 
         adj_OCT_x = OCT[0] + CAM_OFFSET_PX
@@ -79,5 +86,5 @@ if __name__ == "__main__":
 
             if not detected:
                 print("Distance measurement unavailable.")
-
-            last_print_time = current_time
+    
+            
