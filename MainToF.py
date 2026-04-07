@@ -48,16 +48,17 @@ for sensor_id in VL:
     t.start()
     threads.append(t)
 
-print("TOF sensors running. Starting main loop...\n")
+print("TOF sensors running\n")
 
-# Main loop - reads from queue instead of calling getSensorDistanceNoTof directly
+current_direction = "" #used for audio to get current_direction and distance and to know if wall exist
+current_distance = 0
+is_wall = False
+
+# Main loop reads from queue instead of calling getSensorDistanceNoTof directly
 while True:
-    DO, OCT, OCB = getObjInfoNoCam()
-
-    if not DO:
-        print("No object detected.")
-        break
-
+    # Get object coordinates from camera (OCT = top-left, OCB = bottom-right)
+    OCT, OCB = getObjInfoNoCam()  # Removed DO
+        
     # shift bounding box down to account for camera being above sensors
     adj_OCT = (OCT[0], OCT[1] + CAM_OFFSET_PX)
     adj_OCB = (OCB[0], OCB[1] + CAM_OFFSET_PX)
@@ -70,7 +71,7 @@ while True:
         # Get latest readings from queue for all sensors
         SD = {}
         
-        # Non-blocking queue reads - get all available data
+        # Non-blocking queue reads get all available data
         while not tof_queue.empty():
             msg = tof_queue.get()
             SD[msg["sensor_id"]] = msg["distance"]
@@ -85,8 +86,26 @@ while True:
 
         for i in VL:
             if SD[i] <= MSR:
-                print(f"Object to the {labels[i]} at {SD[i]}m away")
+                # Check if camera detected an object in this sensor's field of view
+                object_in_sensor_fov = sensor_sees_object(i, obj_deg_min, obj_deg_max)
+                
+                if object_in_sensor_fov:
+                    # Object detected in this sensor's range
+                    print(f"Object to the {labels[i]} at {SD[i]}m away")
+                    current_direction = labels[i]
+                    current_distance = SD[i]
+                    is_wall = False
+                    print(labels[i], SD[i], is_wall)
+                else:
+                    # No object in FOV, so it's a wall
+                    print(f"Wall to the {labels[i]} at {SD[i]}m away")
+                    current_direction = labels[i]
+                    current_distance = SD[i]
+                    is_wall = True
+                    print(labels[i], SD[i], is_wall)
+                
                 detected = True
+            
 
         if not detected:
             print("Distance measurement unavailable.")
