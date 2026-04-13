@@ -3,6 +3,8 @@ import numpy as np
 import onnxruntime as ort
 import time
 from picamera2 import Picamera2
+from multiprocessing import Queue
+import queue
 from gpiozero import LED
 
 algorithm = "twoClassAlg.onnx"
@@ -13,7 +15,7 @@ className = ["Exit Sign", "Stairs"]
 yellowled = LED(17)
 blueled = LED(27)
 
-def process_yolo_outputs(outputs, frame, conf_threshold=0.4, nms_threshold=0.5):
+def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold=0.5):
     h, w = frame.shape[:2]
 
     preds = outputs[0][0]
@@ -43,9 +45,33 @@ def process_yolo_outputs(outputs, frame, conf_threshold=0.4, nms_threshold=0.5):
             bw_px = int(bw * scaleX)
             bh_px = int(bh * scaleY)
 
+            if y1 > frameSize/2:
+                if x1 < frameSize/3:
+                    quadrant = "left"
+                elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                    quadrant = "center"
+                elif x1 > 2*frameSize/3:
+                    quadrant = "right"
+            
             boxes.append([x1, y1, bw_px, bh_px])
             scores.append(float(confidence))
             class_ids.append(class_id)
+
+            # Clear values from queue not collected by main
+            try:
+                while True:
+                    qOut.get_nowait()
+            except queue.Empty:
+                pass
+
+            # Send detection to queue
+            detection = {
+                "type": "vision",
+                "object": className[class_id],
+                "confidence": confidence,
+                "quadrant": quadrant
+            }
+            qOut.put(detection)
 
 
         indices = []
@@ -77,44 +103,48 @@ def process_yolo_outputs(outputs, frame, conf_threshold=0.4, nms_threshold=0.5):
 
     return frame, results
 
-# Model Optimizationms
-so = ort.SessionOptions()
-so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-so.intra_op_num_threads = 2
-so.inter_op_num_threads = 1
+def vision(qOut: Queue):
+    algorithm = "exitSignAlg.onnx"
+    frameSize = 640
 
-# Load model
-session = ort.InferenceSession(algorithm, sess_options=so)
-input_name = session.get_inputs()[0].name
+    # Model Optimizationms
+    so = ort.SessionOptions()
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    so.intra_op_num_threads = 2
+    so.inter_op_num_threads = 1
 
-# Camera setup
-picam2 = Picamera2()
-picam2.configure(picam2.create_preview_configuration())
-picam2.start()
+    # Load model
+    session = ort.InferenceSession(algorithm, sess_options=so)
+    input_name = session.get_inputs()[0].name
 
-startTime = time.time()
-frameCount = 0
-while True:
-    frame = picam2.capture_array()
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    # Camera setup
+    picam2 = Picamera2()
+    picam2.configure(picam2.create_preview_configuration())
+    picam2.start()
 
-    # Preprocess
-    img = cv2.resize(frame, (frameSize,frameSize))
-    img = img.astype(np.float32)/255.0
-    img = np.transpose(img, (2,0,1))
-    img = np.expand_dims(img, axis=0)
+    startTime = time.time()
+    frameCount = 0
+    while True:
+        frame = picam2.capture_array()
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-    if frameCount % 1 == 0:
-        # Run inference
-        outputs = session.run(None, {input_name: img})
+        # Preprocess
+        img = cv2.resize(frame, (frameSize,frameSize))
+        img = img.astype(np.float32)/255.0
+        img = np.transpose(img, (2,0,1))
+        img = np.expand_dims(img, axis=0)
 
-        # Postprocess YOLO outputs here (NMS, boxes, classes)
-        frame, detections = process_yolo_outputs(outputs, frame)
+        if frameCount % 1 == 0:
+            # Run inference
+            outputs = session.run(None, {input_name: img})
 
-    if frameCount % 10 == 0:
-        endTime = time.time()
-        fps = 10 / (endTime - startTime)
-        startTime = endTime
-        print(f"FPS: {fps:.2f}")
+            # Postprocess YOLO outputs here (NMS, boxes, classes)
+            frame, detections = process_yolo_outputs(qOut, outputs, frame)
 
-    frameCount += 1
+        if frameCount % 10 == 0:
+            endTime = time.time()
+            fps = 10 / (endTime - startTime)
+            startTime = endTime
+            print(f"FPS: {fps:.2f}")
+
+        frameCount += 1
