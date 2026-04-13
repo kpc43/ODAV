@@ -7,6 +7,7 @@ import queue
 import time
 import math
 import random
+from MainToF413 import run_tof
 
 # ==========================================
 # AUDIO ENGINE
@@ -173,40 +174,35 @@ class RobustAudioEngine:
 # ==========================================
 # SIMULATION LOOP
 # ==========================================
-def run_simulation():
+def run_live(audio_queue):
     audio = RobustAudioEngine()
-    
-    # test announcement
     audio.speech_queue.put("system active")
     time.sleep(2)
-    start_time = time.time()
-    
+
     try:
         while True:
-            elapsed = time.time() - start_time
-            
-            # simulate distances
-            sim_center = 1600 - (elapsed * 80) % 1400 
-            sim_left = 800 + math.sin(elapsed * 2) * 400
-            sim_right = 800 + math.cos(elapsed * 1.5) * 400
-            
-            audio.update_distances(sim_left, sim_center, sim_right)
-            
-            # simulate camera detection
-            if random.random() < 0.01:
-                mock_object = random.choice(["chair", "door"])
-                print(f"\n[CAMERA SIM] Detected: {mock_object} in center frame.")
-                audio.trigger_announcement(mock_object)
-            
-            # console visualization
-            if int(elapsed * 10) % 5 == 0:  
-                print(f"[RADAR] L: {sim_left:.0f}mm | C: {sim_center:.0f}mm | R: {sim_right:.0f}mm    ", end="\r")
-                
-            time.sleep(0.1)
-            
+            try:
+                data = audio_queue.get_nowait()
+                # TOF gives meters, audio expects millimeters
+                audio.update_distances(
+                    left_mm   = data["left"]   * 1000,
+                    center_mm = data["center"] * 1000,
+                    right_mm  = data["right"]  * 1000,
+                )
+            except queue.Empty:
+                pass
+
+            time.sleep(0.05)
+
     except KeyboardInterrupt:
-        print("\n\n[System] Shutting down...")
+        print("\n[System] Shutting down...")
         audio.shutdown()
 
 if __name__ == "__main__":
-    run_simulation()
+    audio_queue = queue()
+    
+    # start TOF in its own thread
+    from MainToF413 import run_tof
+    threading.Thread(target=run_tof, args=(audio_queue,), daemon=True).start()
+    
+    run_live(audio_queue)
