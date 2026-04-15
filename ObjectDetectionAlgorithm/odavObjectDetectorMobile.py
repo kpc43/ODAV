@@ -7,11 +7,11 @@ from multiprocessing import Queue
 import queue
 from gpiozero import LED
 
-algorithm = "twoClassAlg.onnx"
+algorithm = "odavFinalAlg.onnx"
 frameSize = 640
 
 # LEDs are in order of class
-className = ["Exit Sign", "Stairs"]
+className = ["Elevator", "Exit Sign", "Person", "Stairs Down", "Stairs Up"]
 yellowled = LED(17)
 blueled = LED(27)
 
@@ -34,44 +34,187 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
 
         if class_id >= len(className):
             continue
+        
+        if class_id == 0: # Elevator
+            if confidence > 0.4:
+                scaleX = w / frameSize
+                scaleY = h / frameSize
+                x1 = int((x - bw / 2) * scaleX)
+                y1 = int((y - bh / 2) * scaleY)
+                bw_px = int(bw * scaleX)
+                bh_px = int(bh * scaleY)
 
-        if confidence > conf_threshold:
-            print(f"Detected {className[class_id]}; Confidence = {confidence:.2f}")
+                if y1 > frameSize/2:
+                    if x1 < frameSize/3:
+                        quadrant = "left"
+                    elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                        quadrant = "center"
+                    elif x1 > 2*frameSize/3:
+                        quadrant = "right"
 
-            scaleX = w / frameSize
-            scaleY = h / frameSize
-            x1 = int((x - bw / 2) * scaleX)
-            y1 = int((y - bh / 2) * scaleY)
-            bw_px = int(bw * scaleX)
-            bh_px = int(bh * scaleY)
+                boxes.append([x1, y1, bw_px, bh_px])
+                scores.append(float(confidence))
+                class_ids.append(class_id)
 
-            if y1 > frameSize/2:
-                if x1 < frameSize/3:
-                    quadrant = "left"
-                elif x1 > frameSize/3 and x1 < 2*frameSize/3:
-                    quadrant = "center"
-                elif x1 > 2*frameSize/3:
-                    quadrant = "right"
-            
-            boxes.append([x1, y1, bw_px, bh_px])
-            scores.append(float(confidence))
-            class_ids.append(class_id)
+                # Clear values from queue not collected by main
+                try:
+                    while True:
+                        qOut.get_nowait()
+                except queue.Empty:
+                    pass
 
-            # Clear values from queue not collected by main
-            try:
-                while True:
-                    qOut.get_nowait()
-            except queue.Empty:
-                pass
+                # Send detection to queue
+                detection = {
+                    "type": "vision",
+                    "object": className[class_id],
+                    "confidence": confidence,
+                    "quadrant": quadrant
+                }
+                qOut.put(detection)
+        elif class_id == 1: # Exit sign
+            if confidence > 0.6:
+                scaleX = w / frameSize
+                scaleY = h / frameSize
+                x1 = int((x - bw / 2) * scaleX)
+                y1 = int((y - bh / 2) * scaleY)
+                bw_px = int(bw * scaleX)
+                bh_px = int(bh * scaleY)
 
-            # Send detection to queue
-            detection = {
-                "type": "vision",
-                "object": className[class_id],
-                "confidence": confidence,
-                "quadrant": quadrant
-            }
-            qOut.put(detection)
+                if y1 > frameSize/2:
+                    if x1 < frameSize/3:
+                        quadrant = "left"
+                    elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                        quadrant = "center"
+                    elif x1 > 2*frameSize/3:
+                        quadrant = "right"
+
+                boxes.append([x1, y1, bw_px, bh_px])
+                scores.append(float(confidence))
+                class_ids.append(class_id)
+
+                # Clear values from queue not collected by main
+                try:
+                    while True:
+                        qOut.get_nowait()
+                except queue.Empty:
+                    pass
+
+                # Send detection to queue
+                detection = {
+                    "type": "vision",
+                    "object": className[class_id],
+                    "confidence": confidence,
+                    "quadrant": quadrant
+                }
+                qOut.put(detection)
+        elif class_id == 2: # Person
+            if confidence > 0.6:
+                scaleX = w / frameSize
+                scaleY = h / frameSize
+                x1 = int((x - bw / 2) * scaleX)
+                y1 = int((y - bh / 2) * scaleY)
+                bw_px = int(bw * scaleX)
+                bh_px = int(bh * scaleY)
+
+                if y1 > frameSize/2:
+                    if x1 < frameSize/3:
+                        quadrant = "left"
+                    elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                        quadrant = "center"
+                    elif x1 > 2*frameSize/3:
+                        quadrant = "right"
+
+                boxes.append([x1, y1, bw_px, bh_px])
+                scores.append(float(confidence))
+                class_ids.append(class_id)
+
+                # Clear values from queue not collected by main
+                try:
+                    while True:
+                        qOut.get_nowait()
+                except queue.Empty:
+                    pass
+
+                # Send detection to queue
+                detection = {
+                    "type": "vision",
+                    "object": className[class_id],
+                    "confidence": confidence,
+                    "quadrant": quadrant
+                }
+                qOut.put(detection)
+        elif class_id == 3: # Stairs Down
+            if confidence > 0.5:
+                scaleX = w / frameSize
+                scaleY = h / frameSize
+                x1 = int((x - bw / 2) * scaleX)
+                y1 = int((y - bh / 2) * scaleY)
+                bw_px = int(bw * scaleX)
+                bh_px = int(bh * scaleY)
+
+                if y1 > frameSize/2:
+                    if x1 < frameSize/3:
+                        quadrant = "left"
+                    elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                        quadrant = "center"
+                    elif x1 > 2*frameSize/3:
+                        quadrant = "right"
+
+                boxes.append([x1, y1, bw_px, bh_px])
+                scores.append(float(confidence))
+                class_ids.append(class_id)
+
+                # Clear values from queue not collected by main
+                try:
+                    while True:
+                        qOut.get_nowait()
+                except queue.Empty:
+                    pass
+
+                # Send detection to queue
+                detection = {
+                    "type": "vision",
+                    "object": className[class_id],
+                    "confidence": confidence,
+                    "quadrant": quadrant
+                }
+                qOut.put(detection)
+        elif class_id == 4: # Stairs Up
+            if confidence > 0.4:
+                scaleX = w / frameSize
+                scaleY = h / frameSize
+                x1 = int((x - bw / 2) * scaleX)
+                y1 = int((y - bh / 2) * scaleY)
+                bw_px = int(bw * scaleX)
+                bh_px = int(bh * scaleY)
+
+                if y1 > frameSize/2:
+                    if x1 < frameSize/3:
+                        quadrant = "left"
+                    elif x1 > frameSize/3 and x1 < 2*frameSize/3:
+                        quadrant = "center"
+                    elif x1 > 2*frameSize/3:
+                        quadrant = "right"
+
+                boxes.append([x1, y1, bw_px, bh_px])
+                scores.append(float(confidence))
+                class_ids.append(class_id)
+
+                # Clear values from queue not collected by main
+                try:
+                    while True:
+                        qOut.get_nowait()
+                except queue.Empty:
+                    pass
+
+                # Send detection to queue
+                detection = {
+                    "type": "vision",
+                    "object": className[class_id],
+                    "confidence": confidence,
+                    "quadrant": quadrant
+                }
+                qOut.put(detection)
 
 
         indices = []
