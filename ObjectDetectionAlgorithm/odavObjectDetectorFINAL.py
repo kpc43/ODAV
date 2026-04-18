@@ -52,6 +52,8 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
                         quadrant = "center"
                     elif x1 > 2*frameSize/3:
                         quadrant = "right"
+                else:
+                    quadrant = "low"
 
                 boxes.append([x1, y1, bw_px, bh_px])
                 scores.append(float(confidence))
@@ -88,6 +90,8 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
                         quadrant = "center"
                     elif x1 > 2*frameSize/3:
                         quadrant = "right"
+                else:
+                    quadrant = "low"
 
                 boxes.append([x1, y1, bw_px, bh_px])
                 scores.append(float(confidence))
@@ -124,6 +128,8 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
                         quadrant = "center"
                     elif x1 > 2*frameSize/3:
                         quadrant = "right"
+                else:
+                    quadrant = "low"
 
                 boxes.append([x1, y1, bw_px, bh_px])
                 scores.append(float(confidence))
@@ -160,6 +166,8 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
                         quadrant = "center"
                     elif x1 > 2*frameSize/3:
                         quadrant = "right"
+                else:
+                    quadrant = "low"
 
                 boxes.append([x1, y1, bw_px, bh_px])
                 scores.append(float(confidence))
@@ -196,6 +204,8 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
                         quadrant = "center"
                     elif x1 > 2*frameSize/3:
                         quadrant = "right"
+                else:
+                    quadrant = "low"
 
                 boxes.append([x1, y1, bw_px, bh_px])
                 scores.append(float(confidence))
@@ -243,7 +253,7 @@ def process_yolo_outputs(qOut, outputs, frame, conf_threshold=0.4, nms_threshold
     return frame, results
 
 def vision(qOut: Queue):
-    algorithm = "exitSignAlg.onnx"
+    algorithm = "odavFinalAlg.onnx"
     frameSize = 640
 
     # Model Optimizationms
