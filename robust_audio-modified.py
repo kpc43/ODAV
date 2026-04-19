@@ -18,30 +18,26 @@ class RobustAudioEngine:
         self.distances = {"left": 2000, "center": 2000, "right": 2000}
         self.is_speaking = False
 
-        # FIX 1: Increase buffer to 2048 to prevent audio dropouts/chirps
         pygame.mixer.init(frequency=48000, size=-16, channels=2, buffer=2048)
-        
-        # FIX 2: Increase total channels from the default 8 to 32
         pygame.mixer.set_num_channels(32)
 
         # center: low thump
         pygame.mixer.init(frequency=48000, size=-16, channels=2, buffer=2048)
         pygame.mixer.set_num_channels(32)
 
-        # FIX: Explicitly reserve channels for specific tasks
         # Channel 0: Center, Channel 1: Left, Channel 2: Right, Channel 3: Voice
         self.chan_center = pygame.mixer.Channel(0)
         self.chan_left   = pygame.mixer.Channel(1)
         self.chan_right  = pygame.mixer.Channel(2)
         self.chan_voice  = pygame.mixer.Channel(3)
 
-        # Re-generate tones with the "soft-square" logic from previous step
+
         self.beep_center = self._generate_tone(freq=350, duration=0.08, vol=0.5, wave_type="sine")
         self.beep_side = self._generate_tone(freq=1200, duration=0.02, vol=0.15, wave_type="square")
   
         self.audio_folder = "sounds"
         self.loaded_voices = {}
-        self._prepare_voices(["chair", "door", "person", "table", "system active"])
+        self._prepare_voices(["chair", "door", "person", "table", "system active", "elevator", "stairs up", "stairs down", "exit sign"])
 
         self.speech_queue = queue.Queue()
         self.last_announced = None
